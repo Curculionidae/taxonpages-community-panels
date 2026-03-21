@@ -32,5 +32,5 @@ type_specimens:
 ```
 
 ## How to contribute
-Fork the repository. Git clone your fork on your local system, copy a panel to your local clone of TaxonPages to start working. Using e.g. Claude (or Claude Code), it is not complicated to modify panels or create new ones. When vibe coding, make sure to provide enough context to the AI agent (API documentation for TaxonWorks, relevant files from the TaxonPages directory).\
+Fork this repository. Git clone your fork on your local system, copy a panel to your local clone of TaxonPages to start working. Using e.g. Claude (or Claude Code), it is not complicated to modify panels or create new ones. When vibe coding, make sure to provide enough context to the AI agent (API documentation for TaxonWorks, relevant files from the TaxonPages directory).\
 To contribute back to this repository, go to the directory where you cloned your fork of this repository. Replace the folder of the panel you modified with your modified version. Use Git to commit your changes with a meaningful description, git push to your fork on Github. Now, you can open a pull request to contribute back to this repository.
