@@ -64,6 +64,16 @@ Loading completes in ~1–2 seconds. The sequence is optimised: step 1 runs in p
 4. **`/citations`** — `citation_object_type=AssertedDistribution&citation_object_id[]=...`
 5. **`/sources`** — `source_id[]=...`
 
+## Map modal
+
+Clicking an area name opens a modal with a Leaflet map showing the polygon for that geographic area.
+
+- Polygon data comes from `/otus/:otuId/inventory/distribution.geojson`. This endpoint is pre-fetched in the background after the table loads so that modals open instantly.
+- GeoJSON features are indexed by `properties.shape.id` (geographic area ID) in `shapeIdMap`.
+- Features with null geometry are skipped. TaxonWorks includes null-geometry entries for synonym distributions inside a valid OTU's inventory GeoJSON; without this guard the null entry can overwrite a real polygon for a shared area.
+- The GeoJSON promise cache (`geoPromiseCache`) deduplicates concurrent fetches for the same OTU.
+- `VMap` receives `properties.base` as an array (`[fp.base]`) as required by `geojsonDefaultOptions`.
+
 ## Notes
 
 - Synonym detection uses `asserted_distribution_object.object_tag`: TaxonWorks embeds `&#10060;` (❌) for synonyms and `&#10003;` (✓) for valid taxa. No extra API call needed.

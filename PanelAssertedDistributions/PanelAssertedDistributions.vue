@@ -64,7 +64,10 @@
               :key="item.id"
             >
               <VTableBodyCell class="pl-8">
-                <span class="font-semibold">{{ item.areaName }}</span>
+                <button
+                  class="font-semibold hover:underline cursor-pointer text-left text-base-content"
+                  @click="openMapModal(item)"
+                >{{ item.areaName }}</button>
                 <span
                   v-if="item.areaType"
                   class="text-xs opacity-50 ml-1.5"
@@ -113,6 +116,35 @@
           </template>
         </VTableBody>
       </VTable>
+
+      <!-- Map modal -->
+      <Teleport to="body">
+        <VModal
+          v-if="mapModal.open"
+          @close="mapModal = { open: false }"
+        >
+          <template #header>
+            <div class="text-sm font-medium">{{ mapModal.areaName }}</div>
+          </template>
+          <div class="p-4">
+            <div
+              v-if="mapModal.loading"
+              class="min-h-[200px] flex items-center justify-center"
+            >
+              <VSpinner />
+            </div>
+            <p
+              v-else-if="!mapModal.feature"
+              class="min-h-[200px] flex items-center justify-center text-sm opacity-50"
+            >No map data available for this area.</p>
+            <VMap
+              v-else
+              :geojson="{ type: 'FeatureCollection', features: [mapModal.feature] }"
+              height="400px"
+            />
+          </div>
+        </VModal>
+      </Teleport>
 
       <!-- Citation modal -->
       <Teleport to="body">
@@ -186,6 +218,10 @@ import { useOtuPageRequest } from '@/modules/otus/helpers/useOtuPageRequest.js'
 import { convertUrlsToLinks } from '@/modules/bibliography/utils/convertUrlsToLinks.js'
 
 const props = defineProps({
+  otuId: {
+    type: [Number, String],
+    required: true
+  },
   taxon: {
     type: Object,
     required: true
@@ -201,6 +237,15 @@ const isLoading = ref(false)
 const totalCount = ref(0)
 const activeCitation = ref(null)
 const selectedOtuId = ref('all')
+
+// Map modal state
+const mapModal = ref({ open: false })
+// Geographic area ID → GeoJSON Feature, merged from all OTU inventories.
+// Keyed by shape.id (geographic area ID) so any tab can find a polygon
+// regardless of which OTU's GeoJSON record it came from.
+const shapeIdMap = ref({})
+// Per-OTU promise cache — deduplicates concurrent requests for the same OTU.
+const geoPromiseCache = {}
 
 const showTabs = computed(() => new Set(distributions.value.map((d) => d.otuId)).size > 1)
 
@@ -235,6 +280,8 @@ function mergeByArea(dists) {
     if (!byArea.has(key)) {
       byArea.set(key, {
         id: dist.id,
+        shapeId: dist.shapeId, // needed for map modal lookup
+        otuId: dist.otuId,     // needed for map modal GeoJSON fetch
         areaName: dist.areaName,
         areaType: dist.areaType,
         parentName: dist.parentName,
@@ -285,6 +332,7 @@ function makeDistribution(item, citationList) {
   return {
     id: item.id,
     otuId: item.asserted_distribution_object_id,
+    shapeId: shape.id,
     otuName: obj.taxon_name || '',
     isSynonym: (obj.object_tag || '').includes('&#10060;'),
     areaName: shape.name || '',
@@ -292,6 +340,50 @@ function makeDistribution(item, citationList) {
     parentName: shape.parent?.name || 'Earth',
     isAbsent: !!item.is_absent,
     citationList
+  }
+}
+
+/**
+ * Fetches GeoJSON for one OTU and merges AssertedDistribution polygon features
+ * into shapeIdMap, keyed by geographic area ID (shape.id). The promise is cached
+ * immediately so concurrent calls share one request.
+ * VMap expects properties.base as an array, so base is wrapped: [fp.base].
+ */
+function fetchGeoForOtu(otuId) {
+  if (geoPromiseCache[otuId]) return geoPromiseCache[otuId]
+  geoPromiseCache[otuId] = (async () => {
+    try {
+      const { data } = await makeAPIRequest.get(`/otus/${otuId}/inventory/distribution.geojson`)
+      const updates = {}
+      for (const f of data?.features || []) {
+        const fp = f.properties || {}
+        if (fp.base?.type === 'AssertedDistribution' && fp.shape?.id && f.geometry) {
+          updates[fp.shape.id] = { ...f, properties: { ...fp, base: [fp.base] } }
+        }
+      }
+      if (Object.keys(updates).length) {
+        shapeIdMap.value = { ...shapeIdMap.value, ...updates }
+      }
+    } catch {
+      // remain silent; cached promise prevents retry storms
+    }
+  })()
+  return geoPromiseCache[otuId]
+}
+
+/**
+ * Opens the map modal for a clicked area row. Awaits the GeoJSON for both
+ * the page OTU (comprehensive inventory) and the clicked distribution's OTU,
+ * then looks up the polygon by geographic area ID.
+ */
+async function openMapModal(item) {
+  mapModal.value = { open: true, loading: true, areaName: item.areaName, feature: null }
+  await Promise.all([fetchGeoForOtu(props.otuId), fetchGeoForOtu(item.otuId)])
+  mapModal.value = {
+    open: true,
+    loading: false,
+    areaName: item.areaName,
+    feature: shapeIdMap.value[item.shapeId] ?? null
   }
 }
 
@@ -376,6 +468,11 @@ async function loadDistributions() {
 
     distributions.value = allData.map((item) => makeDistribution(item, citationsMap.get(item.id) || []))
     totalCount.value = distributions.value.length
+
+    // Background: pre-fetch GeoJSON for all OTUs so map popups are instant.
+    // Always includes props.otuId — its inventory is most comprehensive.
+    const allOtuIds = [...new Set([props.otuId, ...distributions.value.map((d) => d.otuId)])]
+    allOtuIds.forEach(fetchGeoForOtu)
   } catch {
     // silently fail
   } finally {
