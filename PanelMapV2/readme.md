@@ -1,6 +1,6 @@
 # PanelMapV2
 
-This panel is a fork of the vanilla TaxonPages map panel, branched from the state of the codebase on **2026-03-21**. It is a drop-in replacement and accepts the same props (`otuId`, `otu`, `taxon`, `cluster`).
+This panel is a fork of the vanilla TaxonPages map panel, branched from the state of the codebase on **2026-03-21**. It is intended to be a "standalone" replacement in the sense that it lives in the setup branch instead of main.
 
 ## Key improvements over the original
 
