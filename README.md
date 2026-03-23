@@ -3,7 +3,8 @@ Custom panels that were made by the community for [TaxonPages](https://github.co
 See them live at https://catalog.curculionoidea.org (Source repository: https://github.com/Curculionidae/taxa)
 
 ## Disclaimer
-The panels that are currently here were coded using Claude Code. I guess the code can be written more elegantly, and the documentation may be weird (because it is AI-generated). If you notice a problem, please open an issue or pull request :)
+The panels that are currently here were coded using Claude Code. I guess the code can be written more elegantly, and the documentation may be weird (because it is AI-generated). At some point I'll have to take the time to review the code carefully, but for now I'm just glad to see that everything seems to work. 
+If you notice a problem, please open an issue or pull request :)
 
 ## How to install panels
 Copy the folder of the panel into the /panels directory on the setup branch of your [TaxonPages](https://github.com/SpeciesFileGroup/taxonpages).\
